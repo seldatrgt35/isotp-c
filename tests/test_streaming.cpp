@@ -6,7 +6,12 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "isotp.h"
+#ifdef isotpc_USE_INCLUDE_DIR
+    #include "isotp_c/isotp.h"
+#else
+    #include "isotp.h"
+#endif // isotpc_USE_INCLUDE_DIR
+
 #include "mocks/isotp_user_mock.hpp"
 
 #define TEST_OUTPUT_CAPACITY 8192u
@@ -14,85 +19,81 @@
 
 struct IsoTpMockCanFrame {
     uint32_t arbitration_id;
-    uint8_t data[ISO_TP_MAX_CAN_FRAME_SIZE];
-    uint8_t size;
+    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE];
+    uint8_t  size;
 };
 
 static std::vector<IsoTpMockCanFrame> g_can_frames;
-static std::vector<std::string> g_debug_messages;
-static uint32_t g_current_time_us;
-static size_t g_rx_callback_count;
-static std::vector<uint8_t> g_rx_callback_data;
-static void* g_rx_callback_link;
-static void* g_rx_callback_arg;
+static std::vector<std::string>       g_debug_messages;
+static uint32_t                       g_current_time_us;
+static size_t                         g_rx_callback_count;
+static std::vector<uint8_t>           g_rx_callback_data;
+static void*                          g_rx_callback_link;
+static void*                          g_rx_callback_arg;
 
-static void reset_platform_state(void) {
+static void                           reset_platform_state(void) {
     g_can_frames.clear();
     g_debug_messages.clear();
-    g_current_time_us = 0;
+    g_current_time_us   = 0;
     g_rx_callback_count = 0;
     g_rx_callback_data.clear();
     g_rx_callback_link = nullptr;
-    g_rx_callback_arg = nullptr;
+    g_rx_callback_arg  = nullptr;
 }
 
 static int capture_can_frame(uint32_t arbitration_id, const uint8_t* data, uint8_t size, uint8_t, void*) {
     IsoTpMockCanFrame frame = {};
-    frame.arbitration_id = arbitration_id;
-    frame.size = size;
+    frame.arbitration_id    = arbitration_id;
+    frame.size              = size;
     std::memcpy(frame.data, data, size);
     g_can_frames.push_back(frame);
     return ISOTP_RET_OK;
 }
 
-static size_t isotp_mock_can_frame_count(void) { return g_can_frames.size(); }
-static const IsoTpMockCanFrame* isotp_mock_can_frame(size_t index) {
-    return index < g_can_frames.size() ? &g_can_frames[index] : nullptr;
-}
-static size_t isotp_mock_debug_count(void) { return g_debug_messages.size(); }
-static void isotp_mock_set_time_us(uint32_t time_us) { g_current_time_us = time_us; }
-static void isotp_mock_advance_time_us(uint32_t elapsed_us) { g_current_time_us += elapsed_us; }
-static void isotp_mock_rx_done_cb(void* link, const uint8_t* data, uint32_t size, void* argument) {
+static size_t                   isotp_mock_can_frame_count(void) { return g_can_frames.size(); }
+static const IsoTpMockCanFrame* isotp_mock_can_frame(size_t index) { return index < g_can_frames.size() ? &g_can_frames[index] : nullptr; }
+static size_t                   isotp_mock_debug_count(void) { return g_debug_messages.size(); }
+static void                     isotp_mock_set_time_us(uint32_t time_us) { g_current_time_us = time_us; }
+static void                     isotp_mock_advance_time_us(uint32_t elapsed_us) { g_current_time_us += elapsed_us; }
+static void                     isotp_mock_rx_done_cb(void* link, const uint8_t* data, uint32_t size, void* argument) {
     ++g_rx_callback_count;
     g_rx_callback_link = link;
-    g_rx_callback_arg = argument;
+    g_rx_callback_arg  = argument;
     g_rx_callback_data.assign(data, data + size);
 }
-static size_t isotp_mock_rx_callback_count(void) { return g_rx_callback_count; }
+static size_t         isotp_mock_rx_callback_count(void) { return g_rx_callback_count; }
 static const uint8_t* isotp_mock_rx_callback_data(void) { return g_rx_callback_data.data(); }
-static uint32_t isotp_mock_rx_callback_size(void) { return static_cast<uint32_t>(g_rx_callback_data.size()); }
-static void* isotp_mock_rx_callback_link(void) { return g_rx_callback_link; }
-static void* isotp_mock_rx_callback_arg(void) { return g_rx_callback_arg; }
+static uint32_t       isotp_mock_rx_callback_size(void) { return static_cast<uint32_t>(g_rx_callback_data.size()); }
+static void*          isotp_mock_rx_callback_link(void) { return g_rx_callback_link; }
+static void*          isotp_mock_rx_callback_arg(void) { return g_rx_callback_arg; }
 
-class StreamingTest : public testing::Test {
-protected:
-    void SetUp() override {
-        reset_platform_state();
-        isotp_set_user_mock(&user_);
-        ON_CALL(user_, get_us()).WillByDefault([] { return g_current_time_us; });
-        ON_CALL(user_, send_can(testing::_, testing::_, testing::_, testing::_, testing::_))
-            .WillByDefault(capture_can_frame);
-        ON_CALL(user_, debug(testing::_))
-            .WillByDefault([](const std::string& message) { g_debug_messages.push_back(message); });
-    }
+class StreamingTest: public testing::Test {
+   protected:
+        void SetUp() override {
+            reset_platform_state();
+            isotp_set_user_mock(&user_);
+            ON_CALL(user_, get_us()).WillByDefault([] { return g_current_time_us; });
+            ON_CALL(user_, send_can(testing::_, testing::_, testing::_, testing::_, testing::_)).WillByDefault(capture_can_frame);
+            ON_CALL(user_, debug(testing::_)).WillByDefault([](const std::string& message) { g_debug_messages.push_back(message); });
+        }
 
-    void TearDown() override { isotp_set_user_mock(nullptr); }
+        void TearDown() override { isotp_set_user_mock(nullptr); }
 
     testing::NiceMock<IsoTpUserMock> user_;
 };
 
 typedef struct TestLink {
     IsoTpLink link;
-    uint8_t send_buffer[8];
-    uint8_t receive_buffer[64];
+    uint8_t   send_buffer[8];
+    uint8_t   receive_buffer[64];
 } TestLink;
 
 typedef struct StreamResult {
-    uint8_t output[TEST_OUTPUT_CAPACITY];
+    uint8_t  output[TEST_OUTPUT_CAPACITY];
     uint32_t output_size;
     uint32_t chunk_sizes[TEST_CHUNK_CAPACITY];
-    size_t chunk_count;
-    size_t complete_count;
+    size_t   chunk_count;
+    size_t   complete_count;
 } StreamResult;
 
 static void fill_payload(uint8_t* payload, uint32_t size) {
@@ -108,21 +109,21 @@ static void init_test_link(TestLink* test_link, uint32_t receive_buffer_size) {
 }
 
 static uint32_t inject_first_frame(IsoTpLink* link, const uint8_t* payload, uint32_t payload_size) {
-    uint8_t frame[8] = {0};
+    uint8_t  frame[8] = {0};
     uint32_t data_size;
 
     if (payload_size <= 4095u) {
-        frame[0] = (uint8_t)(0x10u | (payload_size >> 8));
-        frame[1] = (uint8_t)payload_size;
+        frame[0]  = (uint8_t)(0x10u | (payload_size >> 8));
+        frame[1]  = (uint8_t)payload_size;
         data_size = 6;
         (void)memcpy(frame + 2, payload, data_size);
     } else {
-        frame[0] = 0x10;
-        frame[1] = 0;
-        frame[2] = (uint8_t)(payload_size >> 24);
-        frame[3] = (uint8_t)(payload_size >> 16);
-        frame[4] = (uint8_t)(payload_size >> 8);
-        frame[5] = (uint8_t)payload_size;
+        frame[0]  = 0x10;
+        frame[1]  = 0;
+        frame[2]  = (uint8_t)(payload_size >> 24);
+        frame[3]  = (uint8_t)(payload_size >> 16);
+        frame[4]  = (uint8_t)(payload_size >> 8);
+        frame[5]  = (uint8_t)payload_size;
         data_size = 2;
         (void)memcpy(frame + 6, payload, data_size);
     }
@@ -132,7 +133,7 @@ static uint32_t inject_first_frame(IsoTpLink* link, const uint8_t* payload, uint
 }
 
 static void inject_consecutive_frame(IsoTpLink* link, const uint8_t* payload, uint32_t payload_size, uint32_t* offset, uint8_t* sequence_number) {
-    uint8_t frame[8] = {0};
+    uint8_t  frame[8]  = {0};
     uint32_t data_size = payload_size - *offset;
 
     if (data_size > 7u) { data_size = 7; }
@@ -146,28 +147,27 @@ static void inject_consecutive_frame(IsoTpLink* link, const uint8_t* payload, ui
 
 static void drain_available_chunks(IsoTpLink* link, StreamResult* result) {
     while (link->receive_status == ISOTP_RECEIVE_STATUS_FULL) {
-        uint32_t chunk_size = 0;
-        bool is_complete = false;
-        int return_code;
+        uint32_t chunk_size  = 0;
+        bool     is_complete = false;
+        int      return_code;
 
         EXPECT_TRUE(result->chunk_count < TEST_CHUNK_CAPACITY);
         EXPECT_TRUE(result->output_size < TEST_OUTPUT_CAPACITY);
 
-        return_code = isotp_receive_streaming(link, result->output + result->output_size,
-                                              TEST_OUTPUT_CAPACITY - result->output_size, &chunk_size, &is_complete);
+        return_code =
+            isotp_receive_streaming(link, result->output + result->output_size, TEST_OUTPUT_CAPACITY - result->output_size, &chunk_size, &is_complete);
         EXPECT_TRUE(return_code == ISOTP_RET_OK);
         result->chunk_sizes[result->chunk_count++] = chunk_size;
         result->output_size += chunk_size;
         if (is_complete) { ++result->complete_count; }
     }
-
 }
 
 static void run_stream_transfer(uint32_t payload_size, uint32_t receive_buffer_size, StreamResult* result) {
     TestLink test_link;
-    uint8_t payload[TEST_OUTPUT_CAPACITY];
+    uint8_t  payload[TEST_OUTPUT_CAPACITY];
     uint32_t offset;
-    uint8_t sequence_number = 1;
+    uint8_t  sequence_number = 1;
 
     EXPECT_TRUE(payload_size <= sizeof(payload));
     EXPECT_TRUE(receive_buffer_size <= sizeof(test_link.receive_buffer));
@@ -209,10 +209,10 @@ static void check_flow_control_frames(uint8_t expected_block_size, size_t expect
 
 TEST_F(StreamingTest, ReceivesSingleFrame) {
     TestLink test_link;
-    uint8_t frame[] = {0x03, 0xa1, 0xb2, 0xc3};
-    uint8_t output[8] = {0};
+    uint8_t  frame[]     = {0x03, 0xa1, 0xb2, 0xc3};
+    uint8_t  output[8]   = {0};
     uint32_t output_size = 0;
-    bool is_complete = false;
+    bool     is_complete = false;
 
     init_test_link(&test_link, sizeof(test_link.receive_buffer));
     isotp_on_can_message(&test_link.link, frame, sizeof(frame));
@@ -226,12 +226,12 @@ TEST_F(StreamingTest, ReceivesSingleFrame) {
 
 TEST_F(StreamingTest, ReceivesMultiFrameThatFitsBuffer) {
     TestLink test_link;
-    uint8_t payload[20];
-    uint8_t output[20] = {0};
+    uint8_t  payload[20];
+    uint8_t  output[20]  = {0};
     uint32_t output_size = 0;
     uint32_t offset;
-    uint8_t sequence_number = 1;
-    bool is_complete = false;
+    uint8_t  sequence_number = 1;
+    bool     is_complete     = false;
 
     fill_payload(payload, sizeof(payload));
     init_test_link(&test_link, 32);
@@ -260,7 +260,7 @@ TEST_F(StreamingTest, PreservesShortChunkBoundaries) {
 
 TEST_F(StreamingTest, SupportsOneByteReceiveBuffer) {
     StreamResult result;
-    size_t index;
+    size_t       index;
 
     run_stream_transfer(20, 1, &result);
     EXPECT_TRUE(result.chunk_count == 20u);
@@ -280,12 +280,12 @@ TEST_F(StreamingTest, ReceivesIsoTp2016LongMessage) {
 
 TEST_F(StreamingTest, DoesNotConsumeChunkWhenDestinationIsTooSmall) {
     TestLink test_link;
-    uint8_t payload[20];
-    uint8_t output[8] = {0};
+    uint8_t  payload[20];
+    uint8_t  output[8]   = {0};
     uint32_t output_size = 1234;
     uint32_t offset;
-    uint8_t sequence_number = 1;
-    bool is_complete = true;
+    uint8_t  sequence_number = 1;
+    bool     is_complete     = true;
 
     fill_payload(payload, sizeof(payload));
     init_test_link(&test_link, 8);
@@ -308,12 +308,12 @@ TEST_F(StreamingTest, DoesNotConsumeChunkWhenDestinationIsTooSmall) {
 
 TEST_F(StreamingTest, RejectsInvalidArgumentsAndLegacyReceive) {
     TestLink test_link;
-    uint8_t payload[20];
-    uint8_t output[32] = {0};
+    uint8_t  payload[20];
+    uint8_t  output[32]  = {0};
     uint32_t output_size = 0;
     uint32_t offset;
-    uint8_t sequence_number = 1;
-    bool is_complete = false;
+    uint8_t  sequence_number = 1;
+    bool     is_complete     = false;
 
     fill_payload(payload, sizeof(payload));
     init_test_link(&test_link, 8);
@@ -331,13 +331,13 @@ TEST_F(StreamingTest, RejectsInvalidArgumentsAndLegacyReceive) {
 }
 
 TEST_F(StreamingTest, CoexistsWithReceiveCallback) {
-    TestLink test_link;
-    StreamResult result = {};
-    uint8_t single_frame[] = {0x03, 0xde, 0xad, 0x42};
-    uint8_t payload[20];
-    uint32_t offset;
-    uint8_t sequence_number = 1;
-    int callback_argument = 17;
+    TestLink     test_link;
+    StreamResult result         = {};
+    uint8_t      single_frame[] = {0x03, 0xde, 0xad, 0x42};
+    uint8_t      payload[20];
+    uint32_t     offset;
+    uint8_t      sequence_number   = 1;
+    int          callback_argument = 17;
 
     fill_payload(payload, sizeof(payload));
     init_test_link(&test_link, 8);
@@ -367,8 +367,8 @@ TEST_F(StreamingTest, CoexistsWithReceiveCallback) {
 }
 
 TEST_F(StreamingTest, RejectsZeroSizedReceiveBuffer) {
-    TestLink test_link;
-    uint8_t payload[20];
+    TestLink                 test_link;
+    uint8_t                  payload[20];
     const IsoTpMockCanFrame* flow_control;
 
     fill_payload(payload, sizeof(payload));
@@ -388,8 +388,8 @@ TEST_F(StreamingTest, RejectsZeroSizedReceiveBuffer) {
 
 TEST_F(StreamingTest, AbortsOnWrongSequenceNumber) {
     TestLink test_link;
-    uint8_t payload[20];
-    uint8_t wrong_frame[8] = {0x22};
+    uint8_t  payload[20];
+    uint8_t  wrong_frame[8] = {0x22};
 
     fill_payload(payload, sizeof(payload));
     (void)memcpy(wrong_frame + 1, payload + 6, 7);
@@ -403,7 +403,7 @@ TEST_F(StreamingTest, AbortsOnWrongSequenceNumber) {
 
 TEST_F(StreamingTest, AbortsOnReceiveTimeout) {
     TestLink test_link;
-    uint8_t payload[20];
+    uint8_t  payload[20];
 
     fill_payload(payload, sizeof(payload));
     init_test_link(&test_link, 16);
@@ -419,11 +419,11 @@ TEST_F(StreamingTest, AbortsOnReceiveTimeout) {
 
 TEST_F(StreamingTest, RejectsMalformedFrames) {
     TestLink test_link;
-    uint8_t payload[20];
-    uint8_t short_single_frame[] = {0x03, 0xaa};
-    uint8_t short_first_frame[7] = {0x10, 0x14};
-    uint8_t invalid_first_frame[8] = {0x10, 0x07};
-    uint8_t short_consecutive_frame[] = {0x21, 0xaa};
+    uint8_t  payload[20];
+    uint8_t  short_single_frame[]      = {0x03, 0xaa};
+    uint8_t  short_first_frame[7]      = {0x10, 0x14};
+    uint8_t  invalid_first_frame[8]    = {0x10, 0x07};
+    uint8_t  short_consecutive_frame[] = {0x21, 0xaa};
 
     EXPECT_CALL(user_, debug(testing::_)).Times(4);
     fill_payload(payload, sizeof(payload));
