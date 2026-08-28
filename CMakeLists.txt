@@ -21,6 +21,7 @@ option(isotpc_ENABLE_RECEIVE_COMPLETE_CALLBACK "Enable receive complete callback
 option(isotpc_ENABLE_STREAMING "Enable chunked reception of messages larger than the receive buffer." OFF)
 option(isotpc_ENABLE_TESTING "Enable building of test suite." OFF)
 option(isotpc_ENABLE_COVERAGE "Instrument the unit-test subjects for gcovr coverage reporting." OFF)
+option(isotpc_ENABLE_FUZZING "Enable building of libFuzzer targets." OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
@@ -176,4 +177,8 @@ if (isotpc_ENABLE_TESTING)
     add_subdirectory(tests)
 elseif (isotpc_ENABLE_COVERAGE)
     message(FATAL_ERROR "[isotp-c] isotpc_ENABLE_COVERAGE requires isotpc_ENABLE_TESTING")
+endif()
+
+if (isotpc_ENABLE_FUZZING)
+    add_subdirectory(fuzz)
 endif()
