@@ -150,6 +150,10 @@ if (isotpc_USE_INCLUDE_DIR)
     file(COPY ${HEADERS} DESTINATION ${CMAKE_CURRENT_BINARY_DIR}/include/isotp_c/)
 
     target_include_directories(isotp PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/include)
+    target_compile_definitions(
+        isotp PUBLIC
+        ISOTP_USE_INCLUDE_DIR=1
+    )
 
 else()
     target_include_directories(isotp PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
