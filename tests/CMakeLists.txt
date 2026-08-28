@@ -1,5 +1,3 @@
-project(isotp-c-tests LANGUAGES C CXX)
-
 include(FetchContent)
 
 set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
@@ -27,6 +25,16 @@ function(isotpc_set_test_warnings target)
 endfunction()
 
 function(isotpc_add_unit_test test_name source)
+    set(subject_name "${test_name}_subject")
+
+    add_library(${subject_name} STATIC ${PROJECT_SOURCE_DIR}/isotp.c)
+    target_include_directories(${subject_name} PUBLIC ${PROJECT_SOURCE_DIR})
+    target_compile_definitions(${subject_name} PUBLIC ${ARGN})
+    isotpc_set_test_warnings(${subject_name})
+    if (NOT MSVC)
+        target_compile_options(${subject_name} PRIVATE -Wno-unknown-pragmas)
+    endif()
+
     add_executable(
         ${test_name}
         ${source}
@@ -34,15 +42,18 @@ function(isotpc_add_unit_test test_name source)
     )
     target_include_directories(${test_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_features(${test_name} PRIVATE cxx_std_17)
-    target_link_libraries(${test_name} PRIVATE GTest::gmock_main isotpc stdc++ dl m)
-
-    target_compile_definitions(isotp PUBLIC ISO_TP_RECEIVE_COMPLETE_CALLBACK)
+    target_link_libraries(${test_name} PRIVATE ${subject_name} GTest::gmock_main stdc++ dl m)
+    isotpc_set_test_warnings(${test_name})
 
     if (isotpc_USE_INCLUDE_DIR)
+        target_include_directories(${test_name} PRIVATE ${PROJECT_BINARY_DIR}/include)
         target_compile_definitions(${test_name} PRIVATE isotpc_USE_INCLUDE_DIR=1)
     endif()
 
-    isotpc_set_test_warnings(${test_name})
+    if (isotpc_ENABLE_COVERAGE)
+        target_compile_options(${subject_name} PRIVATE --coverage -O0 -g)
+        target_link_options(${test_name} PRIVATE --coverage)
+    endif()
 
     gtest_discover_tests(
         ${test_name}
