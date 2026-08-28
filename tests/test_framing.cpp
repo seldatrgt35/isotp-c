@@ -757,7 +757,7 @@ static void test_can_fd_single_frame(void) {
 
     printf("test_can_fd_single_frame\n");
     reset_bus();
-    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer, sizeof(g_receive_buffer));
+    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer.data(), sizeof(g_receive_buffer));
     EXPECT_EQ(isotp_set_tx_dl(&link, 64), ISOTP_RET_OK);
 
     /* payloads of up to 7 bytes keep using the Classical CAN single frame format */
@@ -805,7 +805,7 @@ static void test_can_fd_multi_frame(void) {
 
     printf("test_can_fd_multi_frame\n");
     reset_bus();
-    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer, sizeof(g_receive_buffer));
+    test_init_link(&link, TEST_TX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer.data(), sizeof(g_receive_buffer));
     EXPECT_EQ(isotp_set_tx_dl(&link, 64), ISOTP_RET_OK);
 
     /* 63 bytes is the smallest payload requiring segmentation at a TX_DL of 64 */
@@ -849,7 +849,7 @@ static void test_can_fd_receive(void) {
 
     printf("test_can_fd_receive\n");
     reset_bus();
-    test_init_link(&link, TEST_RX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer, sizeof(g_receive_buffer));
+    test_init_link(&link, TEST_RX_ID, g_send_buffer.data(), sizeof(g_send_buffer), g_receive_buffer.data(), sizeof(g_receive_buffer));
 
     /* single frame using the SF_DL escape sequence */
     memset(frame, ISO_TP_FRAME_PADDING_VALUE, sizeof(frame));
