@@ -102,7 +102,7 @@ static void fill_payload(uint8_t* payload, uint32_t size) {
 
 static void init_test_link(testlink_t* test_link, uint32_t receive_buffer_size) {
     reset_platform_state();
-    (void)memset(test_link, 0, sizeof(*test_link));
+    *test_link = {};
     isotp_init_link(&test_link->link, 0x731, test_link->send_buffer.data(), sizeof(test_link->send_buffer), test_link->receive_buffer.data(),
                     receive_buffer_size);
 }
@@ -172,7 +172,7 @@ static void run_stream_transfer(uint32_t payload_size, uint32_t receive_buffer_s
     EXPECT_TRUE(receive_buffer_size <= sizeof(test_link.receive_buffer));
 
     fill_payload(payload.data(), payload_size);
-    (void)memset(result, 0, sizeof(*result));
+    *result = {};
     init_test_link(&test_link, receive_buffer_size);
 
     offset = inject_first_frame(&test_link.link, payload.data(), payload_size);
