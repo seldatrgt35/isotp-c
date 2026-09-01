@@ -42,7 +42,7 @@ function(isotpc_add_unit_test test_name source)
     )
     target_include_directories(${test_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_compile_features(${test_name} PRIVATE cxx_std_17)
-    target_link_libraries(${test_name} PRIVATE ${subject_name} GTest::gmock_main stdc++ dl m)
+    target_link_libraries(${test_name} PRIVATE ${subject_name} GTest::gmock_main)
     isotpc_set_test_warnings(${test_name})
 
     if (isotpc_USE_INCLUDE_DIR)
