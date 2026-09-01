@@ -12,11 +12,11 @@
 #define FUZZ_MAX_RECORDED_TX_FRAMES 64u
 
 typedef struct {
-    uint32_t arbitration_id;
-    uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE];
-    uint8_t  size;
+        uint32_t arbitration_id;
+        uint8_t  data[ISO_TP_MAX_CAN_FRAME_SIZE];
+        uint8_t  size;
 #ifdef ISO_TP_USER_SEND_CAN_FLAGS
-    uint8_t flags;
+        uint8_t flags;
 #endif
 } FuzzRecordedCanFrame;
 
